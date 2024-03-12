@@ -1,0 +1,56 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    volumes:
+      - .:/app/
+    ports:
+      - 8000:8000
+    container_name: drone_management
+    env_file:
+      - ./.env
+    depends_on:
+      - db
+
+  db:
+    image: postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - ./data/db:/home/postgresql/data:rw
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    container_name: postgres_db
+
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
+
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A drone_management.drone_management worker --loglevel=info
+    volumes:
+      - .:/code
+    depends_on:
+      - redis
+    env_file:
+      - ./.env
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A drone_management.drone_management beat --loglevel=info
+    volumes:
+      - .:/code
+    depends_on:
+      - redis
+    env_file:
+      - ./.env
